@@ -1,0 +1,662 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Jan 2020
+
+"""
+# =============================================================================
+# 1. Import modules
+# =============================================================================
+# 1.1 Handling
+import numpy as np
+import pandas as pd
+pd.set_option('display.max_columns',100) #reduce visible columns
+
+# 1.2 Plotting
+import matplotlib.pyplot as plt
+plt.rc("font", size=14)
+plt.close('all')
+
+import seaborn as sns
+sns.set(style="white")
+sns.set(style="whitegrid", color_codes=True)
+sns.set(font_scale=1.5)
+
+# 1.3 ML Base
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from sklearn.feature_selection import RFE
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import GridSearchCV
+
+# 1.4 ML Analysis
+from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import Lasso
+from sklearn.linear_model import ElasticNet
+from sklearn.linear_model import ElasticNetCV
+from sklearn.linear_model import TheilSenRegressor
+from sklearn.linear_model import RANSACRegressor
+from sklearn.linear_model import HuberRegressor
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.naive_bayes import GaussianNB
+from sklearn.svm import LinearSVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.calibration import calibration_curve
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import precision_score
+from sklearn.metrics import f1_score
+from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_auc_score
+from matplotlib import pyplot
+from sklearn.metrics import classification_report
+from sklearn.metrics import log_loss
+
+# =============================================================================
+# 2. Data Ingestion
+# =============================================================================
+'''
+Identify and gather the data you want to work with.
+'''
+data = pd.read_csv('C:\\Users\\nucular\\Desktop\\ML\\cheatsheet\\data.csv',sep=';')
+#data=pd.read_excel('data.xlsx', index_col=0)
+#data=pd.read_hdf('data.h5', 'data')
+
+
+
+
+# =============================================================================
+# 3. Data Preparation
+# =============================================================================
+'''
+Since the data is raw and unstructured, it is rarely in the correct form to be processed. 
+It usually involves filling missing values or removing duplicate records or 
+normalising and correcting other flaws in data, like different representations 
+of the same values in a column for instance. 
+This is where the feature extraction, construction and selection takes place too.
+'''
+
+# =============================================================================
+# 3.1 Data exploration
+# =============================================================================
+
+# 3.1.1 What is N, how many Variables
+print (data.shape) 
+
+# 3.1.2 Show Dataset
+# What does the data look like, varnames and first 3 entries
+print (data.head(3)) 
+
+# 3.1.3 Show every variable with every unique property
+cat_list=list(data.columns)
+print (cat_list)
+
+for i in cat_list:
+    print (i)
+    print (data[i].unique())
+
+# 3.1.4 Show missings
+print (data.isnull().sum())
+
+
+# 3.1.5 Count different variable outcomes
+count_var = len(data[data['y']=='yes']) 
+print (count_var)
+
+# 3.1.6 View different outcomes grouped by variable
+print (data.groupby('y').mean()) 
+
+# 3.1.7 View distribution of categorial variable
+imp = data.poutcome.value_counts(normalize=True)
+print (imp)
+
+# 3.1.8 View plots with different variable configurations
+
+def scatter_plot(feature, target):
+    plt.figure(figsize=(16, 8))
+    plt.scatter(
+        data[feature],
+        data[target],
+        c='black'
+    )
+    plt.xlabel("X Label".format(feature))
+    plt.ylabel("Y Label")
+    plt.show()
+
+scatter_plot('age', 'balance')
+
+# =============================================================================
+# 3.2 Missings handling
+# =============================================================================
+
+# 3.2.1 Delete rows with NaN missings; (axis=1) deletes columns 
+data.dropna(axis=0)
+
+
+# 3.2.2 Imputation with mean for specific variables
+data['balance'] = data['balance'].fillna((data['balance'].mean()))
+
+# 3.2.3 Imputation with mean for all variables
+data.fillna(data.mean())
+
+
+# 3.2.4 Imputation of categorial variables based on distribution
+imp = data.poutcome.value_counts(normalize=True) # show distribution
+print (imp)
+
+data.replace('unknown', np.nan, inplace=True) # replace values with NaN
+missing = data['poutcome'].isnull()  # define missings
+
+imp = data.poutcome.value_counts(normalize=True) # redefine distribution
+
+data.loc[missing,'poutcome'] = np.random.choice(imp.index, size=len(data[missing]),p=imp.values) # replace missings with distribution
+print(data['poutcome'].unique())
+
+
+
+# =============================================================================
+# 3.3 Data handling
+# =============================================================================
+
+# 3.3.1 Binarization of Variables; 0/1 dummy output
+data['y'] = (data['y']=='yes').astype(int)
+print (data['y'].value_counts())
+
+
+data['default'] = (data['default']=='yes').astype(int)
+data['housing'] = (data['housing']=='yes').astype(int)
+data['loan'] = (data['loan']=='yes').astype(int)
+
+
+# 3.3.2 Dichotomization of categorial variabes; creates k 0/1dummies
+cat_list = ['job','marital','education','contact','month','poutcome'] #create list of all categorial variables
+
+for i in cat_list:
+ add = pd.get_dummies(data[i], prefix=i)
+ data1 = data.join(add)# join columns with old dataframe
+ data = data1
+print (data.head(3))
+print (data.info())
+
+
+# 3.3.3 Standardize features
+'''
+Many elements used in the objective function of a learning algorithm 
+(such as the RBF kernel of Support Vector Machines or the L1 and L2 regularizers of linear models) 
+assume that all features are centered around 0 and have variance in the same order. 
+If a feature has a variance that is orders of magnitude larger that others, 
+it might dominate the objective function and make the estimator 
+unable to learn from other features correctly as expected.
+'''
+
+scaler = StandardScaler()
+scaler.fit(X_train)
+print(scaler.mean_)
+scaler.transform(X_train)
+data_scal = scaler.fit_transform(data_fin)
+
+data_scal = pd.DataFrame(data=data_scal, index=data_fin.index, columns=data_fin.columns)
+
+
+# 3.3.4 Cleaning the database
+new_vars = data.columns.values.tolist() #column headers are converted into a list
+to_keep = [i for i in new_vars if i not in cat_list] #create a new list by comparing with the list of categorical variables - 'cat_list'
+print (to_keep) #check the list of headers 
+
+data_fin = data[to_keep]
+
+
+# =============================================================================
+# 3.4 Dimensionality reduction
+# =============================================================================
+
+# 3.4.1 Recursive Feature Elimination (RFE)
+'''
+If there are to many IV. Only keeps the most important ones. 
+Logistic Regression is the base. Only for binary dependent variables.
+'''
+data_final_vars=data_fin.columns.values.tolist()# converting the headers into a list
+Y = ['y']
+X = [i for i in data_final_vars if i not in Y]
+
+
+
+model = LogisticRegression()
+rfe = RFE(model, 15) #selected k=15 features
+rfe = rfe.fit(data_fin[X], data_fin[Y])
+
+rfe_rankinglist = rfe.ranking_.tolist()
+selected_columns = []
+for i in range(len(X)):
+ if rfe_rankinglist[i]==1:
+  selected_columns.append(X[i]) 
+print (selected_columns) #show all selected features
+print (rfe.ranking_) #show all selected features by ranking up to k-features
+X_new = data_fin[selected_columns]
+
+
+
+# 3.4.2 Correlation matrix
+'''
+If there are to many feature variables. Only keeps the one with high correlation factor. 
+Only for metric dependent variables.
+'''
+correlation = data.corr(method='pearson')
+columns = correlation.nlargest(15, 'balance').index
+
+correlation_map = np.corrcoef(data[columns].values.T)
+sns.set(font_scale=1.0)
+heatmap = sns.heatmap(correlation_map, cbar=True, annot=True, square=True, fmt='.2f', yticklabels=columns.values, xticklabels=columns.values)
+plt.show()
+
+
+
+# =============================================================================
+# 4. Data Segregation
+# =============================================================================
+'''
+Split subsets of data to train the model, test it and further validate how it performs against new data.
+'''
+# 4.1 Separate feature variables and labels
+data_final_vars=data_fin.columns.values.tolist()# converting the headers into a list
+Y = data_fin['y']
+
+cat_list=list(data_fin.columns)
+X = data_fin[cat_list]
+X=X.drop(columns='y')
+
+X_train, X_test, y_train, y_test = train_test_split(X,Y, test_size = 0.30, random_state = 10) #keep 30% of data as test dataset
+
+
+
+# =============================================================================
+# 5. Model Training
+# =============================================================================
+'''
+Use the training subset of data to let the ML algorithm recognise the patterns in it.
+'''
+# 5.1 Linear Models
+# 5.1.1 Linear Regression
+lin = LinearRegression()
+pred_lin = lin.fit(X_train, y_train).predict(X_test) #train the algorithm on training data and predict using the testing data
+y_predlin=lin.predict(X_test)
+print ('Betas: ', list(zip(lin.coef_, X)))
+print ('Beta0: %.2f' % lin.intercept_) #Beta0
+print ('R²: %.2f' % lin.score(X,Y)) #R²
+print ('MSE: %.2f' % mean_squared_error(y_test, y_predlin)) # MSE
+print ('Variance score: %.2f' % r2_score(y_test, y_predlin)) 
+
+cv_results = cross_val_score(lin, X_train, y_train, scoring='neg_mean_squared_error')
+msg = "%s: %f (%f)" % (lin, cv_results.mean(), cv_results.std())
+print(msg)
+
+df = pd.DataFrame({'Actual': y_test, 'Predicted': y_predlin})
+print (df)
+
+
+
+# 5.1.2.1 Ridge Regression
+'''
+Imposing a penalty on the size of the coefficients (the more the higher the penalty)
+Used when the data suffers from multicollinearity, because of penalization
+By adding a degree of bias to the regression estimates, ridge regression reduces the standard errors.
+Normality is not to be assumed.
+'''
+ridge = Ridge(alpha=.5)
+pred_ridge = ridge.fit(X_train, y_train).predict(X_test) #train the algorithm on training data and predict using the testing data
+y_ridge=ridge.predict(X_test)
+print(list(zip(ridge.coef_, X)))
+print(ridge.intercept_) #Beta0
+print (ridge.score(X,Y)) #R²
+print (mean_squared_error(y_test, y_ridge)) # MSE
+
+
+
+# 5.1.2.2 Ridge Regression with crossvalidation to calculate optimal alpha
+''' 
+Cross-Validation (CV):
+Divide the training data into 10 different parts and compute average the prediction error between every part. 
+'''
+
+ridge = Ridge()
+parameters = {'alpha': [1e-15, 1e-10, 1e-8, 1e-4, 1e-3,1e-2, 1, 5, 10, 20]}
+
+ridge_alpha = GridSearchCV(ridge, parameters,scoring='neg_mean_squared_error', cv=5)
+ridge_alpha.fit(X, Y)
+
+
+print ("Optimal alpha score: ", ridge_alpha.best_params_)
+print ("Highest possible Negative-MSE: ", ridge_alpha.best_score_) 
+
+
+
+# 5.1.3.1 Lasso (Least Absolute Shrinkage and Selection Operator) Regression
+'''
+Penalizes the absolute size of the regression coefficients. 
+In addition, it is capable of reducing the variability and improving the 
+accuracy of linear regression models. 
+Normality is not to be assumed.
+It shrinks coefficients to zero, which helps in feature selection.
+If group of predictors are highly correlated, lasso picks only one of them and shrinks the others to zero
+'''
+
+lasso = Lasso(alpha=.5)
+pred_lasso = lasso.fit(X_train, y_train).predict(X_test) #train the algorithm on training data and predict using the testing data
+y_lasso=lasso.predict(X_test)
+print(list(zip(lasso.coef_, X)))
+print(lasso.intercept_) #Beta0
+print (lasso.score(X,Y)) #R²
+print (mean_squared_error(y_test, y_lasso)) # MSE
+
+
+df = pd.DataFrame({'Actual': y_test, 'Predicted': y_lasso})
+print (df)
+
+
+
+# 5.1.3.2 Lasso Regression with crossvalidation to calculate optimal alpha
+lasso = Lasso()
+parameters = {'alpha': [1e-15, 1e-10, 1e-8, 1e-4, 1e-3,1e-2, 1, 5, 10, 20]}
+
+lasso_alpha = GridSearchCV(lasso, parameters,scoring='neg_mean_squared_error', cv=5)
+lasso_alpha.fit(X, Y)
+
+
+print ("Optimal alpha score: ", lasso_alpha.best_params_)
+print ("Highest possible Negative-MSE: ", lasso_alpha.best_score_) 
+
+
+
+# 5.1.4.1 Elastic Net Regression
+elast = ElasticNet(random_state=42)
+pred_elast = elast.fit(X_train, y_train).predict(X_test) #train the algorithm on training data and predict using the testing data
+y_predelast=elast.predict(X_test)
+print ('Betas: ', list(zip(elast.coef_, X)))
+print ('Beta0: %.2f' % elast.intercept_) #Beta0
+print ('R²: %.2f' % elast.score(X,Y)) #R²
+print ('MSE: %.2f' % mean_squared_error(y_test, y_predelast))
+
+
+# 5.1.4.1 Elastic Net Regression with crossvalidation to calculate optimal alpha
+
+elastcv = ElasticNetCV(cv=5, random_state=42)
+pred_elastcv = elastcv.fit(X_train, y_train).predict(X_test) #train the algorithm on training data and predict using the testing data
+y_predelastcv = elastcv.predict(X_test)
+print('Optimal Aplha Value: ', elastcv.alpha_)
+print ('Betas: ', list(zip(elastcv.coef_, X)))
+print ('Beta0: %.2f' % elastcv.intercept_) #Beta0
+print ('R²: %.2f' % elastcv.score(X,Y)) #R²
+print ('MSE: %.2f' % mean_squared_error(y_test, y_predelastcv))
+
+
+
+
+
+# 5.1.5 Robust regression 
+'''Robust regression aims to fit a regression model in the presence 
+of corrupt data: either outliers, or error in the model
+
+
+HuberRegressor should be faster than RANSAC and Theil Sen unless the number of 
+samples are very large, i.e n_samples >> n_features. This is because RANSAC and 
+Theil Sen fit on smaller subsets of the data. However, both Theil Sen and RANSAC 
+are unlikely to be as robust as HuberRegressor for the default parameters.
+
+RANSAC is faster than Theil Sen and scales much better with the number of samples.
+
+RANSAC will deal better with large outliers in the y direction (most common situation).
+
+Theil Sen will cope better with medium-size outliers in the X direction, 
+but this property will disappear in high-dimensional settings.
+
+When in doubt, use RANSAC.
+
+'''
+
+
+# 5.1.5.1 RANSAC regression 
+ransac = RANSACRegressor()
+pred_ransac = ransac.fit(X_train, y_train).predict(X_test) #train the algorithm on training data and predict using the testing data
+y_predransac=ransac.predict(X_test)
+print ('Betas: ', list(zip(ransac.coef_, X)))
+print ('Beta0: %.2f' % ransac.intercept_) #Beta0
+print ('R²: %.2f' % ransac.score(X,Y)) #R²
+print ('MSE: %.2f' % mean_squared_error(y_test, y_predransac))
+
+
+# 5.1.5.2 Theil-Sen regression 
+ts = TheilSenRegressor()
+pred_ts = ts.fit(X_train, y_train).predict(X_test) #train the algorithm on training data and predict using the testing data
+y_predts=ts.predict(X_test)
+print ('Betas: ', list(zip(ts.coef_, X)))
+print ('Beta0: %.2f' % ts.intercept_) #Beta0
+print ('R²: %.2f' % ts.score(X,Y)) #R²
+print ('MSE: %.2f' % mean_squared_error(y_test, y_predts))
+
+
+# 5.1.5.3 Huber regression 
+huber = HuberRegressor(alpha=0.0)
+pred_huber = huber.fit(X_train, y_train).predict(X_test) #train the algorithm on training data and predict using the testing data
+y_predhuber=huber.predict(X_test)
+print ('Betas: ', list(zip(huber.coef_, X)))
+print ('Beta0: %.2f' % huber.intercept_) #Beta0
+print ('R²: %.2f' % huber.score(X,Y)) #R²
+print ('MSE: %.2f' % mean_squared_error(y_test, y_predhuber))
+
+
+
+# 5.2 Classification
+# 5.2.1 Logistic Regression
+log = LogisticRegression(random_state=0, solver='lbfgs',multi_class='multinomial')
+pred_log = log.fit(X_train, y_train).predict(X_test) #train the algorithm on training data and predict using the testing data
+y_pred_log=log.predict(X_test)
+print(log.predict(X_test)) #predcit results based on the trained model
+print("Logistic Regression accuracy : ",accuracy_score(y_test, pred_log, normalize = True)) #accuracy score of the model
+print (log.coef_)
+print(X.columns)
+
+df_log = pd.DataFrame({'Actual': y_test, 'Predicted': y_pred_log})
+print (df_log)
+
+
+
+# 5.2.2 Gaussian Naive Bias (for 0/1)
+'''
+Naive-Bayes algorithm calculates the probability of the connection of X with y 
+and then it selects the feature with the highest probability.
+
+GaussianNaiveBayes tends to push probabilities to 0 or 1. 
+Caution with datasets containing redundant features.
+'''
+gnb = GaussianNB() #create an object of the type GaussianNB
+pred_gnb = gnb.fit(X_train, y_train).predict(X_test) #train the algorithm on training data and predict using the testing data
+print(gnb.predict(X_test)) #predcit results based on the trained model
+print("Naive-Bayes accuracy : ",accuracy_score(y_test, pred_gnb, normalize = True)) #accuracy score of the model
+
+
+
+
+# 5.2.3 Naive Bayes classifier for multinomial models
+#mnb = MultinomialNB()
+
+
+# 5.2.4 Linear Support Vector Classification (SVC)
+'''
+LinearSVC tries to divide the data into different 
+planes so that it can find a best possible grouping of different classes.
+'''
+svc = LinearSVC(random_state=0)
+pred_svc = svc.fit(X_train, y_train).predict(X_test)
+print(svc.predict(X_test)) 
+print("LinearSVC accuracy : ",accuracy_score(y_test, pred_svc, normalize = True))
+
+
+
+# 5.2.5 K-Neighbors Classifier
+kneigh = KNeighborsClassifier(n_neighbors=3)
+kneigh.fit(X_train, y_train)
+pred_kneigh = kneigh.predict(X_test)
+print(kneigh.predict(X_test)) 
+print ("KNeighbors accuracy : ",accuracy_score(y_test, pred_kneigh))
+
+
+
+# =============================================================================
+# 6. Candidate Model Evaluation
+# =============================================================================
+'''
+Assess the performance of the model using test and validation subsets of data 
+to understand how accurate the prediction is. This is an iterative process and 
+various algorithms might be tested until you have a Model that sufficiently 
+answers your question.
+'''
+# 6.1 Accuracy Score
+''' 
+number of correct predictions divided by the total number of predictions, multiplied by 100
+'''
+print("Logistic Regression accuracy :\n ",accuracy_score(y_test, pred_log, normalize = True))
+print("Naive-Bayes accuracy :\n ",accuracy_score(y_test, pred_gnb, normalize = True))
+print("LinearSVC accuracy :\n ",accuracy_score(y_test, pred_svc, normalize = True))
+print ("KNeighbors accuracy :\n ",accuracy_score(y_test, pred_kneigh))
+
+# 6.2 Confusion Matrix
+'''
+Diagonal elements of this matrix denote the correct prediction for different classes, 
+while the off-diagonal elements denote the samples which are mis-classified.
+'''
+print("Logistic Regression confusion matrix :\n ", confusion_matrix(y_test, pred_log))
+print("Naive-Bayes confusion matrix :\n ", confusion_matrix(y_test, pred_gnb))
+print("LinearSVC confusion matrix :\n ", confusion_matrix(y_test, pred_svc))
+print("KNeighbors confusion matrix :\n ", confusion_matrix(y_test, pred_kneigh))
+
+
+# 6.3 Precision Score
+'''
+Precision= True_Positive/ (True_Positive+ False_Positive)
+'''
+print ("Logistic Regression precision :\n ", precision_score(y_test, pred_log, average='binary'))
+print ("Naive-Bayes precision :\n ",precision_score(y_test, pred_gnb, average='binary'))
+print ("LinearSVC precision :\n ",precision_score(y_test, pred_svc, average='binary'))
+print ("KNeighbors precision :\n ",precision_score(y_test, pred_kneigh, average='binary'))
+
+
+# 6.4 F1-Score
+'''
+Weighted average of the precision and recall, where an F1 score reaches its best 
+value at 1 and worst score at 0.
+If you care for a class which is smaller in number independent of the fact whether it is positive or negative, go for ROC-AUC score.
+When will you prefer F1 over ROC-AUC?
+When you have a small positive class, then F1 score makes more sense (than ROC-AUC). 
+This is the common problem in fraud detection where positive labels are few. 
+'''
+print ("Logistic Regression F1-Score :\n ", f1_score(y_test, pred_log, average='binary'))
+print ("Naive-Bayes F1-Score :\n ", f1_score(y_test, pred_gnb, average='binary'))
+print ("LinearSVC F1-Score :\n ", f1_score(y_test, pred_svc, average='binary'))
+print ("KNeighbors F1-Score :\n ", f1_score(y_test, pred_kneigh, average='binary'))
+
+
+# 6.5 Classification Report
+
+print ("Logistic Regression Report :\n ", classification_report(y_test, pred_log))
+print ("Naive-Bayes Report :\n ", classification_report(y_test, pred_gnb))
+print ("LinearSVC Report :\n ", classification_report(y_test, pred_svc))
+print ("KNeighbors Report :\n ", classification_report(y_test, pred_kneigh))
+
+
+
+# 6.6 Log-Loss (logistic loss or cross-entropy loss)
+'''
+It is commonly used in (multinomial) logistic regression and neural networks, it 
+can be used to evaluate the probability outputs (predict_proba) of a 
+classifier instead of its discrete predictions.
+'''
+print ("Logistic Regression log-loss :\n ", log_loss(y_test, pred_log))
+print ("Naive-Bayes log-loss :\n ", log_loss(y_test, pred_gnb))
+print ("LinearSVC log-loss :\n ", log_loss(y_test, pred_svc))
+print ("KNeighbors log-loss :\n ", log_loss(y_test, pred_kneigh))
+
+
+
+# 6.7 ROC-Score and AUC-Score
+'''
+The receiver operating characteristic curve is plot which shows the performance 
+of a binary classifier as function of its cut-off threshold. 
+It essentially shows the true positive rate (TPR) against the false 
+positive rate (FPR) for various threshold values.
+
+The area under the curve (AUC), is an aggregated measure of performance of a 
+binary classifier on all possible threshold values 
+(and therefore it is threshold invariant).
+AUC calculates the area under the ROC curve, and therefore it is between 0 and 1. 
+One way of interpreting AUC is as the probability that the model ranks a 
+random positive example more highly than a random negative example.
+'''
+fpr_log, tpr_log, thresholds = roc_curve(y_test, pred_log)
+fpr_gnb, tpr_gnb, thresholds = roc_curve(y_test, pred_gnb)
+fpr_svc, tpr_svc, thresholds = roc_curve(y_test, pred_svc)
+fpr_kneigh, tpr_kneigh, thresholds = roc_curve(y_test, pred_kneigh)
+
+
+print('Logistic Regression AUC: ', roc_auc_score(y_test, pred_log))
+print('Naive-Bayes AUC: ', roc_auc_score(y_test, pred_gnb))
+print('LinearSVC AUC: ', roc_auc_score(y_test, pred_svc))
+print('KNeighbors AUC: ', roc_auc_score(y_test, pred_kneigh))
+
+
+# plot the roc curve for the model
+pyplot.plot(fpr_log, tpr_log, marker='.', label='Logistic Regression')
+pyplot.plot(fpr_gnb, tpr_gnb, marker='.', label='Naive-Bayes')
+pyplot.plot(fpr_svc, tpr_svc, marker='.', label='LinearSVC')
+pyplot.plot(fpr_kneigh, tpr_kneigh, marker='.', label='KNeighbors')
+# axis labels
+pyplot.xlabel('False Positive Rate')
+pyplot.ylabel('True Positive Rate')
+# show the legend
+pyplot.legend()
+# show the plot
+pyplot.show()
+
+
+
+# 6.8 Calibration plots
+plt.figure(figsize=(10, 10))
+ax1 = plt.subplot2grid((3, 1), (0, 0), rowspan=2)
+ax2 = plt.subplot2grid((3, 1), (2, 0))
+
+ax1.plot([0, 1], [0, 1], "k:", label="Perfectly calibrated")
+for clf, name in [(log, 'Logistic'),(gnb, 'Naive Bayes'),(svc, 'Support Vector Classification'),(kneigh, 'K-Neighborrs')]:
+    clf.fit(X_train, y_train)
+    if hasattr(clf, "predict_proba"):
+        prob_pos = clf.predict_proba(X_test)[:, 1]
+    else:  # use decision function
+        prob_pos = clf.decision_function(X_test)
+        prob_pos = \
+            (prob_pos - prob_pos.min()) / (prob_pos.max() - prob_pos.min())
+    fraction_of_positives, mean_predicted_value = \
+        calibration_curve(y_test, prob_pos, n_bins=10)
+
+    ax1.plot(mean_predicted_value, fraction_of_positives, "s-",
+             label="%s" % (name, ))
+
+    ax2.hist(prob_pos, range=(0, 1), bins=10, label=name,
+             histtype="step", lw=2)
+
+ax1.set_ylabel("Fraction of positives")
+ax1.set_ylim([-0.05, 1.05])
+ax1.legend(loc="lower right")
+ax1.set_title('Calibration plots  (reliability curve)')
+
+ax2.set_xlabel("Mean predicted value")
+ax2.set_ylabel("Count")
+ax2.legend(loc="upper center", ncol=2)
+
+plt.tight_layout()
+plt.show()
+
+
+
+
+
