@@ -27,7 +27,7 @@ Python file that goes through the whole ml process. And consists of:
 - **Data Handling**
     - Missings
     - Imputations
-        - *Imputation with *mean*
+        - *Imputation with mean*
         - *Imputation of categorical variables*
         - *Imputation based on distribution*
     - Dichotomization
